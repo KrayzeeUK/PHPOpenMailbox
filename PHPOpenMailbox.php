@@ -3,261 +3,315 @@
 		PHP Mailbox reader
 	*/
 
-	class php_mailbox{
+	class php_mailbox {
 
 		public $connection; // Connection to imap server
 
-		private $server	= NULL;
+		private $server = NULL;
 		private $username = NULL;
 		private $password = NULL;
 		private $port = NULL;
-		Private $ssl = NULL;
+		private $ssl = NULL;
+		private $options = NULL;
 
-		private $inbox; // Inbox
-		private $msg_cnt; // Mail Counter
-		private $boxes; // Mailbox list
+		private $inbox;        // Inbox
+		private $msg_cnt;    // Mail Counter
+		private $boxes;        // Mailbox list
 
+		/**
+		 *  Things to do on creation
+		 */
 		function __construct() {
-			/*
-				Things to do on creation
-			*/
 		}
 
+		/**
+		 *  Doomsday routine
+		 */
 		function __destruct() {
-			/*
-				Doomsday routine
-			*/
-		}
-		
-		function setup( $server, $username, $password, $port, $options='/imap2/tls' ) {
-			/*
-				Assign connection information
-			*/
-
-			$this->username	= $username; 	// Assign Username
-			$this->password	= $password; 	// Assign Password
-			$this->port = $port; 			// Assign Port Number
-			$this->options = $options;		// Assign encyption type
-
-			$this->server = "{" . $server . $options . "}"; 		// Assign Server
-
 		}
 
-		function connect() {
-			/*
-				Connect to the mail server
-			*/
+		/**
+		 * Assign connection information
+		 *
+		 * @param string $server
+		 * @param string $username
+		 * @param string $password
+		 * @param int    $port
+		 * @param string $options
+		 */
+		function setup( string $server, string $username, string $password, int $port, string $options = '/imap2/tls' ): void {
 
-			$this->connection = imap_open(	$this->server, 
-											$this->username, 
-											$this->password );
-											
-			if ( $this->connection == false ) {
-				echo "Failed to connect";
+			$this->username = $username;                    // Assign Username
+			$this->password = $password;                    // Assign Password
+			$this->port = $port;                            // Assign Port Number
+			$this->options = $options;                        // Assign encryption type
+			$this->server = "{" . $server . $options . "}";    // Assign Server
+		}
+
+		/**
+		 *  Connect to the mail server
+		 */
+		function connect(): bool {
+
+			$this->connection = imap_open(
+				$this->server,
+				$this->username,
+				$this->password
+			);
+
+			if ( $this->connection == FALSE ) {
+				return FALSE;
 			}
+			return TRUE;
 		}
 
-		function close() {
-			/*
-				Close the connection to the mailbox server
-			*/
+		/**
+		 * Close the connection to the mailbox server
+		 */
+		function close(): void {
 
 			$this->inbox = array();
 			$this->msg_cnt = 0;
 
 			imap_close( $this->connection );
 		}
-		
-		function change_mailbox( $box ) {
-			
-			imap_reopen($this->connection, $this->boxes[$box]);
 
+		/**
+		 * @param string $box Name of the box you wish to use
+		 */
+		function changeMailbox( string $box ): bool {
+
+			return imap_reopen( $this->connection, $this->boxes[ $box ] );
 		}
-		
-		function get_mailboxes() {
-			/*
-				List mailboxes
-			*/
-			
-			$this->boxes = imap_list( $this->connection, $this->server, '*' );	
+
+		/**
+		 * List mailboxes
+		 *
+		 * @return array|false
+		 */
+		function getMailboxes() {
+
+			$this->boxes = imap_list( $this->connection, $this->server, '*' );
 
 			return $this->boxes;
 		}
-		
-		function get_inbox( $page = 1, $perpage = 100, $getbody = false, $peek = false ) {
-			/*
-			
-				$page = Page number you wish to return.
-				$perpage = number of email you wish to return at anyone time
-				$getbody(true/false) = if you wish to get the email body aswell
-				$peek (true/false) = if you wish to peek at the email and not mark them as read
-				
-				read the inbox
-			*/
-			
+
+		/**
+		 * Read the contents of the current mailbox
+		 *
+		 * @param int  $page    Page number you wish to return.
+		 * @param int  $perPage Number of email you wish to return at anyone time
+		 * @param bool $getBody if you wish to get the email body as well
+		 * @param bool $peek    if you wish to peek at the email and not mark them as read
+		 *
+		 * @return array
+		 */
+		function getInbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): array {
+
 			$in = array();
 			$this->msg_cnt = imap_num_msg( $this->connection );
 
-			if ( $this->msg_cnt > $perpage ) {
-				$offset = (( $page - 1) * $perpage); // calculate start position
-				if ( $offset < 1 ) { $offset = 1; }
-				if ( $offset > $this->msg_cnt ) { return false; } // No More emails
-				
-				$end = ( $page * $perpage); // Calcuiate end
-				if ( $end > $this->msg_cnt ) {
-					$end = $this->msg_cnt; // Make sure we dont eceed the amount of emails
+			if ( $this->msg_cnt > $perPage ) {
+				$offset = ( ( $page - 1 ) * $perPage ); // calculate start position
+				if ( $offset < 1 ) {
+					$offset = 1;
 				}
-				
+				if ( $offset > $this->msg_cnt ) {
+					return $in;
+				} // No More emails
+
+				$end = ( $page * $perPage ); // Calculate end
+				if ( $end > $this->msg_cnt ) {
+					$end = $this->msg_cnt; // Make sure we don't exceed the amount of emails
+				}
+
 			} else {
 				$offset = 1;
-				$end = $this->msg_cnt; // Calcuiate end
+				$end = $this->msg_cnt; // Calculate end
 			}
-			
-			for( $idx = $offset; $idx < $end; $idx++ ) {
-				
+
+			for ( $idx = $offset; $idx < $end; $idx++ ) {
+
 				$body = NULL;
-				
-				if ( $getbody ) {
-					if ( $peek != false ){
+
+				if ( $getBody ) {
+					if ( $peek != FALSE ) {
 						$peek = FT_PEEK;
 					}
 					echo "Getting body";
 					$body = imap_body( $this->connection, $idx, $peek );
 				}
-				
+
 				$in[] = array(
-					'index'     => $idx,
-					'header'    => imap_headerinfo( $this->connection, $idx ),
-					'body'      => $body,
+					'index' => $idx,
+					'header' => imap_headerinfo( $this->connection, $idx ),
+					'body' => $body,
 					'structure' => imap_fetchstructure( $this->connection, $idx )
 				);
 			}
 
 			$this->inbox = $in;
-			
+
 			return $in;
 		}
-		
-		function get_mail_body( $index, $peek = false ) {
-			if ( $peek != false ){
+
+		/**
+		 * Get contents of mail
+		 *
+		 * @param      $index
+		 * @param bool $peek
+		 */
+		function getMailBody( $index, bool $peek = FALSE ) {
+
+			if ( $peek != FALSE ) {
 				$peek = FT_PEEK;
 			}
-					
-			$this->inbox[$index]["body"] = imap_body( $this->connection, $this->inbox[$index]["index"], $peek );
-			
+
+			$this->inbox[ $index ]["body"] = imap_body( $this->connection, $this->inbox[ $index ]["index"], $peek );
 		}
 
-		function get_mail( $index=NULL ) {
-			/*
-				get a specific message (
-						1 = first email, 
-						2 = second email, 
-							etc.
-					)
-			*/
-			
-			if ( count( $this->inbox ) <= 0 ) {
-				return array();
-			} elseif ( ! is_null( $index ) && isset( $this->inbox[$index] ) ) {
-				return $this->inbox[ $index ];
+		/**
+		 * return specified email index
+		 *
+		 * @param int $index
+		 * @return array
+		 */
+		function getMail( int $index ): array {
+
+			if ( count( $this->inbox ) > 0 ) {
+				if ( $index > 0 && isset( $this->inbox[ $index ] ) ) {
+					return $this->inbox[ $index ];
+				}
 			}
 
-			return $this->inbox[0];
+			return array(); // No email in the inbox
 		}
 
-		function get_attachments ( $index ) {
-			
-			$attachments = array();
-			
-			$structure = $this->inbox[$index]["structure"]; // Get Mail Struction
-			
-			$id = $this->inbox[$index]["index"];
-			
-			if(isset($structure->parts) && count($structure->parts)) {
+		/**
+		 * Get and decode attachments from selected email
+		 *
+		 * @param int $index
+		 * @return array
+		 */
+		function getAttachments( int $index ): array {
 
-				for($i = 0; $i < count($structure->parts); $i++) {
+			$attachmentCount = 0; // set initial value
+			$attachments = array(); // initialise array
 
-					$attachments[$i] = array(
-						'is_attachment' => false,
-						'filename' => '',
-						'name' => '',
-						'attachment' => ''
-					);
-					
-					if($structure->parts[$i]->ifdparameters) {
-						foreach($structure->parts[$i]->dparameters as $object) {
-							if(strtolower($object->attribute) == 'filename') {
-								$attachments[$i]['is_attachment'] = true;
-								$attachments[$i]['filename'] = $object->value;
+			$structure = $this->inbox[ $index ]["structure"]; // Get Mail Structure
+			$id = $this->inbox[ $index ]["index"];
+
+			// check is any attachments
+			if ( isset( $structure->parts ) && count( $structure->parts ) ) {
+				for ( $i = 0; $i < count( $structure->parts ); $i++ ) {
+					html_print_r( $structure->parts[ $i ], "Part" );
+
+					if ( !empty( $structure->parts[ $i ]->disposition ) ) {
+
+						$attachments[ $attachmentCount ] = array(
+							'is_attachment' => FALSE,
+							'filename' => '',
+							'name' => '',
+							'attachment' => ''
+						);
+
+						if ( $structure->parts[ $i ]->ifdparameters ) {
+							// true if the dparameters array exists
+							foreach ( $structure->parts[ $i ]->dparameters as $object ) {
+								if ( strtolower( $object->attribute ) == 'filename' ) {
+									// Get filename from email
+									$attachments[ $attachmentCount ]['is_attachment'] = TRUE;
+									$attachments[ $attachmentCount ]['filename'] = $object->value;
+								}
 							}
 						}
-					}
-					
-					if($structure->parts[$i]->ifparameters) {
-						foreach($structure->parts[$i]->parameters as $object) {
-							if(strtolower($object->attribute) == 'name') {
-								$attachments[$i]['is_attachment'] = true;
-								$attachments[$i]['name'] = $object->value;
+
+						if ( $structure->parts[ $i ]->ifparameters ) {
+							// true if the parameters array exists
+							foreach ( $structure->parts[ $i ]->parameters as $object ) {
+								if ( strtolower( $object->attribute ) == 'name' ) {
+									// Get name from email
+									$attachments[ $attachmentCount ]['is_attachment'] = TRUE;
+									$attachments[ $attachmentCount ]['name'] = $object->value;
+								}
 							}
 						}
-					}
-					
-					if($attachments[$i]['is_attachment']) {
-						if ( $this->inbox[$index]["body"] == NULL ) {
-							$this->inbox[$index]["body"] = imap_fetchbody($this->connection, $id, $i+1);
-						}
 
-						$message = $this->inbox[$index]["body"];
-						
-						switch ( $structure->parts[$i]->encoding ) {
-							case 0:
-								$attachments[$i]['attachment'] = $message;
-								break;
-							case 1:
-								$attachments[$i]['attachment'] = imap_8bit($message);
-								break;
-							case 2:
-								$attachments[$i]['attachment'] = imap_binary($message);
-								break;
-							case 3:
-								// BASE64
-								$attachments[$i]['attachment'] = base64_decode($message);
-								break;
-							case 4:
-								// QUOTED-PRINTABLE
-								$attachments[$i]['attachment'] = quoted_printable_decode($message);
-								break;
+						if ( $attachments[ $attachmentCount ]['is_attachment'] ) {
+							if ( $this->inbox[ $index ]["body"] == NULL ) {
+								// Get email body if not already downloaded
+								$this->inbox[ $index ]["body"] = imap_fetchbody( $this->connection, $id, $i + 1 );
+							}
+
+							$message = $this->inbox[ $index ]["body"]; // Assign body to current message
+							$attachments[ $attachmentCount ]['encoding'] = $structure->parts[ $i ]->encoding; // Assign encoding type to current attachment.
+
+							// Encoding Type
+							switch ( $structure->parts[ $i ]->encoding ) {
+								case ENC7BIT:
+									$attachments[ $attachmentCount ]['attachment'] = $message; // No decoding needed
+									break;
+								case ENC8BIT:
+									$attachments[ $attachmentCount ]['attachment'] = imap_8bit( $message ); //  Decode
+									break;
+								case ENCBINARY:
+									$attachments[ $attachmentCount ]['attachment'] = imap_binary( $message ); //  Decode
+									break;
+								case ENCBASE64:
+									$attachments[ $attachmentCount ]['attachment'] = base64_decode( $message ); //  Decode
+									break;
+								case ENCQUOTEDPRINTABLE:
+									$attachments[ $attachmentCount ]['attachment'] = quoted_printable_decode( $message ); //  Decode
+									break;
+								case ENCOTHER:
+									// Not currently handled
+									break;
+							}
 						}
 					}
 				}
-				
-				return $attachments;
-			} else {
-				return false;
 			}
+
+			return $attachments; // Return attachments
 		}
 
-		function move_mail( $index, $folder='INBOX.Processed' ) {
-			/*
-				Move email message to folder
-			*/
-			
-			imap_mail_move( $this->connection, $index, $folder );
-			imap_expunge( $this->connection );
+		/**
+		 * Move email message to folder
+		 *
+		 * @param int    $index  ID of email to move
+		 * @param string $folder Path where to move mail to
+		 * @return bool
+		 */
+		function move_mail( int $index, string $folder = 'INBOX.Processed' ): bool {
 
-			$this->get_inbox(); // Update the Inbox
+			$moveReturn = imap_mail_move( $this->connection, $index, $folder ); // Move the email
+			imap_expunge( $this->connection ); // Delete all messages marked for deletion
+
+			$this->getInbox(); // Update the Inbox
+
+			return $moveReturn;
 		}
 
-		function search_mail( $search ) {
-			/*
-				Search Mail Box
-			*/
+		/**
+		 * Search mailbox for given message
+		 *
+		 * @param String $search          Search Parameter + Search String
+		 *                                ALL, ANSWERED, BCC, BEFORE(Date), BODY,
+		 *                                CC, DELETED, FLAGGED, FROM, KEYWORD,
+		 *                                NEW, OLD, ON, RECENT, SEEN, SINCE(date),
+		 *                                SUBJECT, TEXT, TO, UNANSWERED, UNDELETED,
+		 *                                UNFLAGGED, UNKEYWORD, UNSEEN
+		 * @return array|false
+		 */
+		function search_mail( string $search ) {
 
-			return imap_search( $this->connection, $search);
+			return imap_search( $this->connection, $search );
 		}
-		
-		function send_mail() {
-			//imap_mail
+
+		function send_mail( $mailTo, $mailSubject, $mailMessage, $mailCC = "", $mailBCC = "" ): bool {
+			// TODO Write Send Mail Routine
+			return imap_mail( $mailTo, $mailSubject, $mailMessage, "", $mailCC, $mailBCC, "" );
 		}
 	}
+
 ?>
