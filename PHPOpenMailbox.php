@@ -189,7 +189,7 @@
 		 *
 		 * @return mixed
 		 */
-		public function getCurrentMailbox() {
+		public function getCurrentMailboxName() {
 			return $this->currentMailbox;
 		}
 
@@ -290,6 +290,26 @@
 			return TRUE;
 		}
 
+		public function getUnreadMessages( string $from = "" ) {
+
+			$unseenEmails = array();
+			$unseenSearch = "UNSEEN" . ( $from == "" ? "" : ( " FROM " . $from ) );
+			$unseenEmailList = $this->searchMail( $unseenSearch );
+
+			if ( !empty( $unseenEmailList ) ) {
+				foreach ( $unseenEmailList as $emailIndexNumber ) {
+					$unseenEmails[ $emailIndexNumber ] = array(
+						'index' => $emailIndexNumber,
+						'header' => imap_headerinfo( $this->connection, $emailIndexNumber ),
+						'body' => imap_fetchbody( $this->connection, $emailIndexNumber, 1 ),
+						'structure' => imap_fetchstructure( $this->connection, $emailIndexNumber )
+					);
+				}
+			}
+
+			return $unseenEmails;
+		}
+
 		/**
 		 * List mailboxes
 		 *
@@ -340,7 +360,7 @@
 		 * @param String $mailboxName Name of Mailbox to select
 		 * @return bool
 		 */
-		public function selectMailbox( String $mailboxName ): bool {
+		public function selectMailbox( string $mailboxName ): bool {
 
 			$mailboxFound = FALSE;
 			$mailboxes = $this->listMailboxes();
