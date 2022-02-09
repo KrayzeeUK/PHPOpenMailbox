@@ -8,7 +8,9 @@ Usage
 		
 		$mymail->setup( $server, $username, $password, $rport, $options); // Setup connection details
 		$mymail->connect(); // Connect to mailbox
-						
-		$mailboxes = $mymail->getMailboxes(); // Get list of mailboxes
+		
+		$msgCount = $mymail->getMailCount();
+		
+		$mailboxes = $mymail->listMailboxes(); // Get list of mailboxes
     
-  	$mymail->getMailbox(); // Get mailbox contents
+  		$mymail->getMailbox(); // Get mailbox contents
