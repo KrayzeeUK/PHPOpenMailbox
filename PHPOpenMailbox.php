@@ -85,106 +85,14 @@
 		}
 
 		/**
-		 * List mailboxes
+		 * gets the current amount of messages in the mailbox
 		 *
-		 * @return array|false
+		 * @return false|int
 		 */
-		function getMailboxes() {
-
-			$this->boxes = imap_list( $this->connection, $this->server, '*' );
-
-			return $this->boxes;
-		}
-
-		/**
-		 * Read the contents of the current mailbox
-		 *
-		 * @param int  $page    Page number you wish to return.
-		 * @param int  $perPage Number of email you wish to return at anyone time
-		 * @param bool $getBody if you wish to get the email body as well
-		 * @param bool $peek    if you wish to peek at the email and not mark them as read
-		 *
-		 * @return array
-		 */
-		function getMailbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): array {
-
-			$in = array();
+		function countMail() {
 			$this->msg_cnt = imap_num_msg( $this->connection );
 
-			if ( $this->msg_cnt > $perPage ) {
-				$offset = ( ( $page - 1 ) * $perPage ); // calculate start position
-				if ( $offset < 1 ) {
-					$offset = 1;
-				}
-				if ( $offset > $this->msg_cnt ) {
-					return $in;
-				} // No More emails
-
-				$end = ( $page * $perPage ); // Calculate end
-				if ( $end > $this->msg_cnt ) {
-					$end = $this->msg_cnt; // Make sure we don't exceed the amount of emails
-				}
-
-			} else {
-				$offset = 1;
-				$end = $this->msg_cnt; // Calculate end
-			}
-
-			for ( $idx = $offset; $idx < $end; $idx++ ) {
-
-				$body = NULL;
-
-				if ( $getBody ) {
-					if ( $peek != FALSE ) {
-						$peek = FT_PEEK;
-					}
-					echo "Getting body";
-					$body = imap_body( $this->connection, $idx, $peek );
-				}
-
-				$in[] = array(
-					'index' => $idx,
-					'header' => imap_headerinfo( $this->connection, $idx ),
-					'body' => $body,
-					'structure' => imap_fetchstructure( $this->connection, $idx )
-				);
-			}
-
-			$this->inbox = $in;
-
-			return $in;
-		}
-
-		/**
-		 * Get contents of mail
-		 *
-		 * @param      $index
-		 * @param bool $peek
-		 */
-		function getMailBody( $index, bool $peek = FALSE ) {
-
-			if ( $peek != FALSE ) {
-				$peek = FT_PEEK;
-			}
-
-			$this->inbox[ $index ]["body"] = imap_body( $this->connection, $this->inbox[ $index ]["index"], $peek );
-		}
-
-		/**
-		 * return specified email index
-		 *
-		 * @param int $index
-		 * @return array
-		 */
-		function getMail( int $index ): array {
-
-			if ( count( $this->inbox ) > 0 ) {
-				if ( $index > 0 && isset( $this->inbox[ $index ] ) ) {
-					return $this->inbox[ $index ];
-				}
-			}
-
-			return array(); // No email in the inbox
+			return $this->msg_cnt;
 		}
 
 		/**
@@ -204,8 +112,6 @@
 			// check is any attachments
 			if ( isset( $structure->parts ) && count( $structure->parts ) ) {
 				for ( $i = 0; $i < count( $structure->parts ); $i++ ) {
-					html_print_r( $structure->parts[ $i ], "Part" );
-
 					if ( !empty( $structure->parts[ $i ]->disposition ) ) {
 
 						$attachments[ $attachmentCount ] = array(
@@ -276,13 +182,115 @@
 		}
 
 		/**
+		 * return specified email index
+		 *
+		 * @param int $index
+		 * @return array
+		 */
+		function getMail( int $index ): array {
+
+			if ( count( $this->inbox ) > 0 ) {
+				if ( $index > 0 && isset( $this->inbox[ $index ] ) ) {
+					return $this->inbox[ $index ];
+				}
+			}
+
+			return array(); // No email in the inbox
+		}
+
+		/**
+		 * Get contents of mail
+		 *
+		 * @param      $index
+		 * @param bool $peek
+		 */
+		function getMailBody( $index, bool $peek = FALSE ) {
+
+			if ( $peek != FALSE ) {
+				$peek = FT_PEEK;
+			}
+
+			$this->inbox[ $index ]["body"] = imap_body( $this->connection, $this->inbox[ $index ]["index"], $peek );
+		}
+
+		/**
+		 * Read the contents of the current mailbox
+		 *
+		 * @param int  $page    Page number you wish to return.
+		 * @param int  $perPage Number of email you wish to return at anyone time
+		 * @param bool $getBody if you wish to get the email body as well
+		 * @param bool $peek    if you wish to peek at the email and not mark them as read (Default: FALSE)
+		 *
+		 * @return array
+		 */
+		function getMailbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): array {
+
+			$in = array();
+
+			$this->countMail(); // Get the current amount of messages in the inbox
+
+			if ( $this->msg_cnt > $perPage ) {
+				$offset = ( ( $page - 1 ) * $perPage ); // calculate start position
+				if ( $offset < 1 ) {
+					$offset = 1;
+				}
+				if ( $offset > $this->msg_cnt ) {
+					return $in;
+				} // No More emails
+
+				$end = ( $page * $perPage ); // Calculate end
+				if ( $end > $this->msg_cnt ) {
+					$end = $this->msg_cnt; // Make sure we don't exceed the amount of emails
+				}
+			} else {
+				$offset = 1;
+				$end = $this->msg_cnt; // Calculate end
+			}
+
+			for ( $idx = $offset; $idx < $end; $idx++ ) {
+
+				$body = NULL;
+
+				if ( $getBody ) {
+					if ( $peek != FALSE ) {
+						$peek = FT_PEEK;
+					}
+					$body = imap_body( $this->connection, $idx, $peek );
+				}
+
+				$in[] = array(
+					'index' => $idx,
+					'header' => imap_headerinfo( $this->connection, $idx ),
+					'body' => $body,
+					'structure' => imap_fetchstructure( $this->connection, $idx )
+				);
+			}
+
+			$this->inbox = $in;
+
+			return $in;
+		}
+
+		/**
+		 * List mailboxes
+		 *
+		 * @return array|false
+		 */
+		function listMailboxes() {
+
+			$this->boxes = imap_list( $this->connection, $this->server, '*' );
+
+			return $this->boxes;
+		}
+
+		/**
 		 * Move email message to folder
 		 *
 		 * @param int    $index  ID of email to move
 		 * @param string $folder Path where to move mail to
 		 * @return bool
 		 */
-		function move_mail( int $index, string $folder = 'INBOX.Processed' ): bool {
+		function moveMail( int $index, string $folder = 'INBOX.Processed' ): bool {
 
 			$moveReturn = imap_mail_move( $this->connection, $index, $folder ); // Move the email
 			imap_expunge( $this->connection ); // Delete all messages marked for deletion
@@ -303,12 +311,12 @@
 		 *                                UNFLAGGED, UNKEYWORD, UNSEEN
 		 * @return array|false
 		 */
-		function search_mail( string $search ) {
+		function searchMail( string $search ) {
 
 			return imap_search( $this->connection, $search );
 		}
 
-		function send_mail( $mailTo, $mailSubject, $mailMessage, $mailCC = "", $mailBCC = "" ): bool {
+		function sendMail( $mailTo, $mailSubject, $mailMessage, $mailCC = "", $mailBCC = "" ): bool {
 			// TODO Write Send Mail Routine
 			return imap_mail( $mailTo, $mailSubject, $mailMessage, "", $mailCC, $mailBCC, "" );
 		}
