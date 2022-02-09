@@ -14,9 +14,10 @@
 		private $ssl = NULL;
 		private $options = NULL;
 
-		private $inbox;        // Inbox
-		private $msg_cnt;    // Mail Counter
-		private $boxes;        // Mailbox list
+		private $inbox;				// Inbox
+		private $msg_cnt;			// Mail Counter
+		private $boxes;				// Mailbox list
+		private $currentMailbox;	// The currently selected mailbox
 
 		/**
 		 *  Things to do on creation
@@ -39,7 +40,7 @@
 		 * @param int    $port
 		 * @param string $options
 		 */
-		function setup( string $server, string $username, string $password, int $port, string $options = '/imap2/tls' ): void {
+		public function setup( string $server, string $username, string $password, int $port, string $options = '/imap2/tls' ): void {
 
 			$this->username = $username;                    // Assign Username
 			$this->password = $password;                    // Assign Password
@@ -68,7 +69,7 @@
 		/**
 		 * Close the connection to the mailbox server
 		 */
-		function close(): void {
+		public function close(): void {
 
 			$this->inbox = array();
 			$this->msg_cnt = 0;
@@ -79,8 +80,8 @@
 		/**
 		 * @param string $box Name of the box you wish to use
 		 */
-		function changeMailbox( string $box ): bool {
-
+		public function changeMailbox( string $box ): bool {
+			$currentMailbox = $this->boxes[ $box ];
 			return imap_reopen( $this->connection, $this->boxes[ $box ] );
 		}
 
@@ -89,7 +90,7 @@
 		 *
 		 * @return false|int
 		 */
-		function countMail() {
+		public function countMail() {
 			$this->msg_cnt = imap_num_msg( $this->connection );
 
 			return $this->msg_cnt;
@@ -101,7 +102,7 @@
 		 * @param int $index
 		 * @return array
 		 */
-		function getAttachments( int $index ): array {
+		public function getAttachments( int $index ): array {
 
 			$attachmentCount = 0; // set initial value
 			$attachments = array(); // initialise array
@@ -182,12 +183,20 @@
 		}
 
 		/**
+		 * Returns the currently selected mailbox
+		 * @return mixed
+		 */
+		public function getCurrentMailbox() {
+			return $this->currentMailbox;
+		}
+
+		/**
 		 * return specified email index
 		 *
 		 * @param int $index
 		 * @return array
 		 */
-		function getMail( int $index ): array {
+		public function getMail( int $index ): array {
 
 			if ( count( $this->inbox ) > 0 ) {
 				if ( $index > 0 && isset( $this->inbox[ $index ] ) ) {
@@ -204,7 +213,7 @@
 		 * @param      $index
 		 * @param bool $peek
 		 */
-		function getMailBody( $index, bool $peek = FALSE ) {
+		public function getMailBody( $index, bool $peek = FALSE ) {
 
 			if ( $peek != FALSE ) {
 				$peek = FT_PEEK;
@@ -223,7 +232,7 @@
 		 *
 		 * @return array
 		 */
-		function getMailbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): array {
+		public function getMailbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): array {
 
 			$in = array();
 
@@ -276,7 +285,7 @@
 		 *
 		 * @return array|false
 		 */
-		function listMailboxes() {
+		public function listMailboxes() {
 
 			$this->boxes = imap_list( $this->connection, $this->server, '*' );
 
@@ -290,7 +299,7 @@
 		 * @param string $folder Path where to move mail to
 		 * @return bool
 		 */
-		function moveMail( int $index, string $folder = 'INBOX.Processed' ): bool {
+		public function moveMail( int $index, string $folder = 'INBOX.Processed' ): bool {
 
 			$moveReturn = imap_mail_move( $this->connection, $index, $folder ); // Move the email
 			imap_expunge( $this->connection ); // Delete all messages marked for deletion
@@ -311,12 +320,11 @@
 		 *                                UNFLAGGED, UNKEYWORD, UNSEEN
 		 * @return array|false
 		 */
-		function searchMail( string $search ) {
-
+		public function searchMail( string $search ) {
 			return imap_search( $this->connection, $search );
 		}
 
-		function sendMail( $mailTo, $mailSubject, $mailMessage, $mailCC = "", $mailBCC = "" ): bool {
+		public function sendMail( $mailTo, $mailSubject, $mailMessage, $mailCC = "", $mailBCC = "" ): bool {
 			// TODO Write Send Mail Routine
 			return imap_mail( $mailTo, $mailSubject, $mailMessage, "", $mailCC, $mailBCC, "" );
 		}
