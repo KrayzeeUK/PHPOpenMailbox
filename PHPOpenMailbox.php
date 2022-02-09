@@ -106,7 +106,7 @@
 		 *
 		 * @return array
 		 */
-		function getInbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): array {
+		function getMailbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): array {
 
 			$in = array();
 			$this->msg_cnt = imap_num_msg( $this->connection );
@@ -287,7 +287,7 @@
 			$moveReturn = imap_mail_move( $this->connection, $index, $folder ); // Move the email
 			imap_expunge( $this->connection ); // Delete all messages marked for deletion
 
-			$this->getInbox(); // Update the Inbox
+			$this->getMailbox(); // Update the Inbox
 
 			return $moveReturn;
 		}
