@@ -274,14 +274,11 @@
 					$body = imap_body( $this->connection, $idx, $peek );
 				}
 
-				$mailHeader = imap_headerinfo( $this->connection, $idx );
-				$mailStructure = imap_fetchstructure( $this->connection, $idx );
-
 				$in[ $idx ] = array(
 					'index' => $idx,
-					'header' => $mailHeader,
+					'header' => imap_headerinfo( $this->connection, $idx ),
 					'body' => $body,
-					'structure' => $mailStructure
+					'structure' => imap_fetchstructure( $this->connection, $idx )
 				);
 			}
 
@@ -301,11 +298,13 @@
 					$unseenEmails[ $emailIndexNumber ] = array(
 						'index' => $emailIndexNumber,
 						'header' => imap_headerinfo( $this->connection, $emailIndexNumber ),
-						'body' => imap_fetchbody( $this->connection, $emailIndexNumber, 1 ),
+						'body' => NULL,
 						'structure' => imap_fetchstructure( $this->connection, $emailIndexNumber )
 					);
 				}
 			}
+
+			$this->mailBox = $unseenEmails; // assign messages to mailbox
 
 			return $unseenEmails;
 		}
