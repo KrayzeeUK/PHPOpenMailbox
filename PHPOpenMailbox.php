@@ -14,7 +14,7 @@
 		private $ssl = NULL;
 		private $options = NULL;
 
-		public $mailBox;            // Mailbox Contents
+		private $mailBox;            // Mailbox Contents
 		private $mailCount;            // Email Message Counter
 		private $boxes;                // Mailbox folder list
 		private $currentMailbox;    // The currently selected mailbox Name
@@ -332,6 +332,32 @@
 		 */
 		public function searchMail( string $search ) {
 			return imap_search( $this->connection, $search );
+		}
+
+		/**
+		 * makes the given mailbox the currently active mailbox.
+		 *
+		 * @param String $mailboxName Name of Mailbox to select
+		 * @return bool
+		 */
+		public function selectMailbox( String $mailboxName ): bool {
+
+			$mailboxFound = FALSE;
+			$mailboxes = $this->listMailboxes();
+
+			if ( !empty( $mailboxes ) ) {
+				// Loop through Mailboxes
+				foreach ( $mailboxes as $midx => $value ) {
+					if ( stristr( $value, $mailboxName ) ) {
+						// Mailbox found in list
+						$this->changeMailbox( $midx );
+						$mailboxFound = TRUE;
+						break;
+					}
+				}
+			}
+
+			return $mailboxFound;
 		}
 
 		public function sendMail( $mailTo, $mailSubject, $mailMessage, $mailCC = "", $mailBCC = "" ): bool {
