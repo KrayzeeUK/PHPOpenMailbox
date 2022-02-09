@@ -14,10 +14,10 @@
 		private $ssl = NULL;
 		private $options = NULL;
 
-		private $inbox;				// Inbox
-		private $msg_cnt;			// Mail Counter
-		private $boxes;				// Mailbox list
-		private $currentMailbox;	// The currently selected mailbox
+		public $mailBox;            // Mailbox Contents
+		private $mailCount;            // Email Message Counter
+		private $boxes;                // Mailbox folder list
+		private $currentMailbox;    // The currently selected mailbox Name
 
 		/**
 		 *  Things to do on creation
@@ -71,8 +71,8 @@
 		 */
 		public function close(): void {
 
-			$this->inbox = array();
-			$this->msg_cnt = 0;
+			$this->mailBox = array();
+			$this->mailCount = 0;
 
 			imap_close( $this->connection );
 		}
@@ -81,7 +81,7 @@
 		 * @param string $box Name of the box you wish to use
 		 */
 		public function changeMailbox( string $box ): bool {
-			$currentMailbox = $this->boxes[ $box ];
+			$this->currentMailbox = $this->boxes[ $box ];
 			return imap_reopen( $this->connection, $this->boxes[ $box ] );
 		}
 
@@ -91,9 +91,9 @@
 		 * @return false|int
 		 */
 		public function countMail() {
-			$this->msg_cnt = imap_num_msg( $this->connection );
+			$this->mailCount = imap_num_msg( $this->connection );
 
-			return $this->msg_cnt;
+			return $this->mailCount;
 		}
 
 		/**
@@ -107,72 +107,74 @@
 			$attachmentCount = 0; // set initial value
 			$attachments = array(); // initialise array
 
-			$structure = $this->inbox[ $index ]["structure"]; // Get Mail Structure
-			$id = $this->inbox[ $index ]["index"];
+			if ( !empty( $this->mailBox[ $index ] ) ) {
+				$structure = $this->mailBox[ $index ]["structure"]; // Get Mail Structure
+				$id = $this->mailBox[ $index ]["index"];
 
-			// check is any attachments
-			if ( isset( $structure->parts ) && count( $structure->parts ) ) {
-				for ( $i = 0; $i < count( $structure->parts ); $i++ ) {
-					if ( !empty( $structure->parts[ $i ]->disposition ) ) {
+				// check is any attachments
+				if ( isset( $structure->parts ) && count( $structure->parts ) ) {
+					for ( $i = 0; $i < count( $structure->parts ); $i++ ) {
+						if ( !empty( $structure->parts[ $i ]->disposition ) ) {
 
-						$attachments[ $attachmentCount ] = array(
-							'is_attachment' => FALSE,
-							'filename' => '',
-							'name' => '',
-							'attachment' => ''
-						);
+							$attachments[ $attachmentCount ] = array(
+								'is_attachment' => FALSE,
+								'filename' => '',
+								'name' => '',
+								'attachment' => ''
+							);
 
-						if ( $structure->parts[ $i ]->ifdparameters ) {
-							// true if the dparameters array exists
-							foreach ( $structure->parts[ $i ]->dparameters as $object ) {
-								if ( strtolower( $object->attribute ) == 'filename' ) {
-									// Get filename from email
-									$attachments[ $attachmentCount ]['is_attachment'] = TRUE;
-									$attachments[ $attachmentCount ]['filename'] = $object->value;
+							if ( $structure->parts[ $i ]->ifdparameters ) {
+								// true if the dparameters array exists
+								foreach ( $structure->parts[ $i ]->dparameters as $object ) {
+									if ( strtolower( $object->attribute ) == 'filename' ) {
+										// Get filename from email
+										$attachments[ $attachmentCount ]['is_attachment'] = TRUE;
+										$attachments[ $attachmentCount ]['filename'] = $object->value;
+									}
 								}
 							}
-						}
 
-						if ( $structure->parts[ $i ]->ifparameters ) {
-							// true if the parameters array exists
-							foreach ( $structure->parts[ $i ]->parameters as $object ) {
-								if ( strtolower( $object->attribute ) == 'name' ) {
-									// Get name from email
-									$attachments[ $attachmentCount ]['is_attachment'] = TRUE;
-									$attachments[ $attachmentCount ]['name'] = $object->value;
+							if ( $structure->parts[ $i ]->ifparameters ) {
+								// true if the parameters array exists
+								foreach ( $structure->parts[ $i ]->parameters as $object ) {
+									if ( strtolower( $object->attribute ) == 'name' ) {
+										// Get name from email
+										$attachments[ $attachmentCount ]['is_attachment'] = TRUE;
+										$attachments[ $attachmentCount ]['name'] = $object->value;
+									}
 								}
 							}
-						}
 
-						if ( $attachments[ $attachmentCount ]['is_attachment'] ) {
-							if ( $this->inbox[ $index ]["body"] == NULL ) {
-								// Get email body if not already downloaded
-								$this->inbox[ $index ]["body"] = imap_fetchbody( $this->connection, $id, $i + 1 );
-							}
+							if ( $attachments[ $attachmentCount ]['is_attachment'] ) {
+								if ( $this->mailBox[ $index ]["body"] == NULL ) {
+									// Get email body if not already downloaded
+									$this->mailBox[ $index ]["body"] = imap_fetchbody( $this->connection, $id, $i + 1 );
+								}
 
-							$message = $this->inbox[ $index ]["body"]; // Assign body to current message
-							$attachments[ $attachmentCount ]['encoding'] = $structure->parts[ $i ]->encoding; // Assign encoding type to current attachment.
+								$message = $this->mailBox[ $index ]["body"]; // Assign body to current message
+								$attachments[ $attachmentCount ]['encoding'] = $structure->parts[ $i ]->encoding; // Assign encoding type to current attachment.
 
-							// Encoding Type
-							switch ( $structure->parts[ $i ]->encoding ) {
-								case ENC7BIT:
-									$attachments[ $attachmentCount ]['attachment'] = $message; // No decoding needed
-									break;
-								case ENC8BIT:
-									$attachments[ $attachmentCount ]['attachment'] = imap_8bit( $message ); //  Decode
-									break;
-								case ENCBINARY:
-									$attachments[ $attachmentCount ]['attachment'] = imap_binary( $message ); //  Decode
-									break;
-								case ENCBASE64:
-									$attachments[ $attachmentCount ]['attachment'] = base64_decode( $message ); //  Decode
-									break;
-								case ENCQUOTEDPRINTABLE:
-									$attachments[ $attachmentCount ]['attachment'] = quoted_printable_decode( $message ); //  Decode
-									break;
-								case ENCOTHER:
-									// Not currently handled
-									break;
+								// Encoding Type
+								switch ( $structure->parts[ $i ]->encoding ) {
+									case ENC7BIT:
+										$attachments[ $attachmentCount ]['attachment'] = $message; // No decoding needed
+										break;
+									case ENC8BIT:
+										$attachments[ $attachmentCount ]['attachment'] = imap_8bit( $message ); //  Decode
+										break;
+									case ENCBINARY:
+										$attachments[ $attachmentCount ]['attachment'] = imap_binary( $message ); //  Decode
+										break;
+									case ENCBASE64:
+										$attachments[ $attachmentCount ]['attachment'] = base64_decode( $message ); //  Decode
+										break;
+									case ENCQUOTEDPRINTABLE:
+										$attachments[ $attachmentCount ]['attachment'] = quoted_printable_decode( $message ); //  Decode
+										break;
+									case ENCOTHER:
+										// Not currently handled
+										break;
+								}
 							}
 						}
 					}
@@ -184,6 +186,7 @@
 
 		/**
 		 * Returns the currently selected mailbox
+		 *
 		 * @return mixed
 		 */
 		public function getCurrentMailbox() {
@@ -198,10 +201,10 @@
 		 */
 		public function getMail( int $index ): array {
 
-			if ( count( $this->inbox ) > 0 ) {
-				if ( $index > 0 && isset( $this->inbox[ $index ] ) ) {
-					return $this->inbox[ $index ];
-				}
+			$emailCount = count( $this->mailBox ); // Get the amount of messages in the mailbox
+
+			if ( !empty( $this->mailBox[ $index ] ) ) {
+				return $this->mailBox[ $index ];
 			}
 
 			return array(); // No email in the inbox
@@ -213,13 +216,17 @@
 		 * @param      $index
 		 * @param bool $peek
 		 */
-		public function getMailBody( $index, bool $peek = FALSE ) {
+		public function getMailBody( $index, bool $peek = FALSE ): bool {
 
-			if ( $peek != FALSE ) {
-				$peek = FT_PEEK;
+			if ( !empty( $this->mailBox[ $index ] ) ) {
+				if ( $peek != FALSE ) {
+					$peek = FT_PEEK;
+				}
+
+				$this->mailBox[ $index ]["body"] = imap_body( $this->connection, $this->mailBox[ $index ]["index"], $peek );
+				return TRUE;
 			}
-
-			$this->inbox[ $index ]["body"] = imap_body( $this->connection, $this->inbox[ $index ]["index"], $peek );
+			return FALSE;
 		}
 
 		/**
@@ -232,31 +239,31 @@
 		 *
 		 * @return array
 		 */
-		public function getMailbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): array {
+		public function getMailbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): bool {
 
 			$in = array();
 
 			$this->countMail(); // Get the current amount of messages in the inbox
 
-			if ( $this->msg_cnt > $perPage ) {
+			if ( $this->mailCount > $perPage ) {
 				$offset = ( ( $page - 1 ) * $perPage ); // calculate start position
 				if ( $offset < 1 ) {
 					$offset = 1;
 				}
-				if ( $offset > $this->msg_cnt ) {
-					return $in;
+				if ( $offset > $this->mailCount ) {
+					return FALSE;
 				} // No More emails
 
 				$end = ( $page * $perPage ); // Calculate end
-				if ( $end > $this->msg_cnt ) {
-					$end = $this->msg_cnt; // Make sure we don't exceed the amount of emails
+				if ( $end > $this->mailCount ) {
+					$end = $this->mailCount; // Make sure we don't exceed the amount of emails
 				}
 			} else {
 				$offset = 1;
-				$end = $this->msg_cnt; // Calculate end
+				$end = $this->mailCount; // Calculate end
 			}
 
-			for ( $idx = $offset; $idx < $end; $idx++ ) {
+			for ( $idx = $offset; $idx <= $end; $idx++ ) {
 
 				$body = NULL;
 
@@ -267,17 +274,20 @@
 					$body = imap_body( $this->connection, $idx, $peek );
 				}
 
-				$in[] = array(
+				$mailHeader = imap_headerinfo( $this->connection, $idx );
+				$mailStructure = imap_fetchstructure( $this->connection, $idx );
+
+				$in[ $idx ] = array(
 					'index' => $idx,
-					'header' => imap_headerinfo( $this->connection, $idx ),
+					'header' => $mailHeader,
 					'body' => $body,
-					'structure' => imap_fetchstructure( $this->connection, $idx )
+					'structure' => $mailStructure
 				);
 			}
 
-			$this->inbox = $in;
+			$this->mailBox = $in; // assign messages to mailbox
 
-			return $in;
+			return TRUE;
 		}
 
 		/**
