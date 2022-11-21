@@ -316,7 +316,14 @@
 		 */
 		public function listMailboxes() {
 
-			$this->boxes = imap_list( $this->connection, $this->server, '*' );
+			try {
+				if ( $this->connection == FALSE ) {
+					$this->boxes = NULL; // No connection to server.  return NULL
+				} else {
+					$this->boxes = imap_list( $this->connection, $this->server, '*' );
+				}
+			} catch () {
+			}
 
 			return $this->boxes;
 		}
