@@ -322,7 +322,7 @@
 				} else {
 					$this->boxes = imap_list( $this->connection, $this->server, '*' );
 				}
-			} catch () {
+			} catch ( Exception $e) {
 			}
 
 			return $this->boxes;
