@@ -85,6 +85,7 @@
 		public function changeMailbox( string $box ): bool {
 			$this->currentMailbox = $this->boxes[ $box ];
 			if ( imap_reopen( $this->connection, $this->boxes[ $box ] ) ) {
+				$this->lastErrorMessage = "";
 				return TRUE;
 			} else {
 				$this->lastErrorMessage = "Failed to change Mailbox";
@@ -365,7 +366,16 @@
 		 * @return array|false
 		 */
 		public function searchMail( string $search ) {
-			return imap_search( $this->connection, $search );
+			$this->lastErrorMessage = "";
+
+			$imapSearchResults = imap_search( $this->connection, $search );
+
+			if ( $imapSearchResults === FALSE ) {
+				$this->lastErrorMessage = "No Results Found";
+				return array();
+			}
+
+			return $imapSearchResults;
 		}
 
 		/**
