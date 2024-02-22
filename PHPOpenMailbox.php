@@ -19,6 +19,8 @@
 		private $boxes;                // Mailbox folder list
 		private $currentMailbox;    // The currently selected mailbox Name
 
+		public $lastErrorMessage;
+
 		/**
 		 *  Things to do on creation
 		 */
@@ -82,7 +84,12 @@
 		 */
 		public function changeMailbox( string $box ): bool {
 			$this->currentMailbox = $this->boxes[ $box ];
-			return imap_reopen( $this->connection, $this->boxes[ $box ] );
+			if ( imap_reopen( $this->connection, $this->boxes[ $box ] ) ) {
+				return TRUE;
+			} else {
+				$this->lastErrorMessage = "Failed to change Mailbox";
+				return FALSE;
+			}
 		}
 
 		/**
@@ -215,6 +222,7 @@
 		 *
 		 * @param      $index
 		 * @param bool $peek
+		 * @return bool
 		 */
 		public function getMailBody( $index, bool $peek = FALSE ): bool {
 
@@ -237,7 +245,7 @@
 		 * @param bool $getBody if you wish to get the email body as well
 		 * @param bool $peek    if you wish to peek at the email and not mark them as read (Default: FALSE)
 		 *
-		 * @return array
+		 * @return bool
 		 */
 		public function getMailbox( int $page = 1, int $perPage = 100, bool $getBody = FALSE, bool $peek = FALSE ): bool {
 
@@ -287,7 +295,7 @@
 			return TRUE;
 		}
 
-		public function getUnreadMessages( string $from = "" ) {
+		public function getUnreadMessages( string $from = "" ): array {
 
 			$unseenEmails = array();
 			$unseenSearch = "UNSEEN" . ( $from == "" ? "" : ( " FROM " . $from ) );
@@ -322,7 +330,7 @@
 				} else {
 					$this->boxes = imap_list( $this->connection, $this->server, '*' );
 				}
-			} catch ( Exception $e) {
+			} catch ( Exception $e ) {
 			}
 
 			return $this->boxes;
@@ -376,8 +384,8 @@
 				foreach ( $mailboxes as $midx => $value ) {
 					if ( stristr( $value, $mailboxName ) ) {
 						// Mailbox found in list
-						$this->changeMailbox( $midx );
-						$mailboxFound = TRUE;
+						$mailboxFound = $this->changeMailbox( $midx );
+
 						break;
 					}
 				}
