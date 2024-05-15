@@ -391,6 +391,9 @@
 
 			if ( !empty( $mailboxes ) ) {
 				// Loop through Mailboxes
+
+				$mailboxName = $this->server . $mailboxName;
+
 				foreach ( $mailboxes as $midx => $value ) {
 					if ( stristr( $value, $mailboxName ) ) {
 						// Mailbox found in list
